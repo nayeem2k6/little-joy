@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function NotFound() { return <div className="container page-pad text-center"><span className="text-6xl">🪁</span><p className="eyebrow mt-5">Oops, this page wandered off</p><h1 className="section-title">We can’t find that page.</h1><p className="mb-6 text-gray-600">Let’s get you back to the good stuff.</p><Link className="btn" href="/">Go home</Link></div>; }
