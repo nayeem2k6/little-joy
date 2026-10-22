@@ -6,7 +6,8 @@ import { useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { api, messageOf } from "@/lib/api";
+import { api, confirmAuthenticatedSession, messageOf } from "@/lib/api";
+import { GoogleSignInButton } from "@/components/google-sign-in-button";
 
 const schema = z.object({
   name: z.string().trim().min(2, "Please enter your name."),
@@ -23,12 +24,25 @@ export default function RegisterPage() {
     setError("");
     try {
       await api("/auth/register", { method: "POST", body: JSON.stringify(values) });
-      const returnTo = new URLSearchParams(window.location.search).get("returnTo");
-      router.push(returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/account");
+      await confirmAuthenticatedSession();
+      continueAfterSignIn();
     }
     catch (err) { setError(messageOf(err)); }
   }
-  return <div className="container page-pad"><div className="card mx-auto max-w-lg p-6 sm:p-9"><p className="eyebrow">Join our little community</p><h1 className="section-title">Create an account</h1><form onSubmit={handleSubmit(submit)} className="mt-6 grid gap-4">
+  function continueAfterSignIn() {
+    const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+    router.push(returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/account");
+  }
+  async function signInWithGoogle(credential: string) {
+    setError("");
+    await api("/auth/google", { method: "POST", body: JSON.stringify({ credential }) });
+    await confirmAuthenticatedSession();
+    continueAfterSignIn();
+  }
+  return <div className="container page-pad"><div className="card mx-auto max-w-lg p-6 sm:p-9"><p className="eyebrow">Join our little community</p><h1 className="section-title">Create an account</h1>
+    <GoogleSignInButton onCredential={signInWithGoogle} onError={(err) => setError(messageOf(err))} />
+    <p className="my-5 text-center text-sm text-gray-500">or create an account with email</p>
+    <form onSubmit={handleSubmit(submit)} className="grid gap-4">
     <label className="field-label">Full name<input autoComplete="name" className="field" {...register("name")} />{errors.name && <span className="text-sm text-red-600">{errors.name.message}</span>}</label>
     <label className="field-label">Email<input type="email" autoComplete="email" className="field" {...register("email")} />{errors.email && <span className="text-sm text-red-600">{errors.email.message}</span>}</label>
     <label className="field-label">Mobile number<input type="tel" autoComplete="tel" placeholder="01XXXXXXXXX" className="field" {...register("phone")} />{errors.phone && <span className="text-sm text-red-600">{errors.phone.message}</span>}</label>

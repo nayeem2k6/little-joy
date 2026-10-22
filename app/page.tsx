@@ -8,13 +8,6 @@ import { api } from "@/lib/api";
 import { productId, type ApiList, type Category, type Product } from "@/lib/types";
 import { ProductCard } from "@/components/product-card";
 
-const categoriesFallback = [
-  { name: "Baby & toddler", slug: "baby-toddler", imageUrl: "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=700&q=80" },
-  { name: "Pretend play", slug: "pretend-play", imageUrl: "https://images.unsplash.com/photo-1599623560574-39d485900c95?auto=format&fit=crop&w=700&q=80" },
-  { name: "Building & puzzles", slug: "building-puzzles", imageUrl: "https://images.unsplash.com/photo-1587654780291-39c9404d746b?auto=format&fit=crop&w=700&q=80" },
-  { name: "Creative play", slug: "creative-play", imageUrl: "https://images.unsplash.com/photo-1560961911-ba7ef651a56c?auto=format&fit=crop&w=700&q=80" }
-];
-
 function unwrap<T>(response: ApiList<T> | T[]): T[] {
   return Array.isArray(response) ? response : response.data || response.products || response.categories || response.items || [];
 }
@@ -25,9 +18,13 @@ export default function HomePage() {
   const [error, setError] = useState("");
   useEffect(() => {
     Promise.all([
-      api<ApiList<Product> | Product[]>("/products?limit=4&sort=popular"),
+      api<ApiList<Product> | Product[]>("/products?limit=4&featured=true")
+        .then(async response => {
+          const featured = unwrap(response);
+          return featured.length ? featured : unwrap(await api<ApiList<Product> | Product[]>("/products?limit=4&sort=popular"));
+        }),
       api<ApiList<Category> | Category[]>("/categories")
-    ]).then(([p, c]) => { setProducts(unwrap(p).slice(0, 4)); setCategories(unwrap(c).slice(0, 4)); })
+    ]).then(([p, c]) => { setProducts(p.slice(0, 4)); setCategories(unwrap(c).slice(0, 4)); })
       .catch(() => setError("Our shelves are taking a little break. Please check back soon."));
   }, []);
   return <>
@@ -51,10 +48,10 @@ export default function HomePage() {
     </section>
     <section className="container py-16">
       <div className="mb-7 flex items-end justify-between gap-4"><div><p className="eyebrow">Find their kind of fun</p><h2 className="section-title">Shop by category</h2></div><Link href="/shop" className="hidden items-center gap-2 text-sm font-bold text-forest sm:flex">All toys <ArrowRight size={16} /></Link></div>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">{(categories.length ? categories : categoriesFallback).map((category, i) => <Link key={category.slug} href={`/category/${category.slug}`} className={`group relative aspect-[.95] overflow-hidden rounded-[22px] ${i % 2 ? "bg-mint" : "bg-cream"}`}>
-        <Image src={category.imageUrl || categoriesFallback[i % categoriesFallback.length].imageUrl} alt="" fill sizes="(max-width: 640px) 50vw, 25vw" className="object-cover transition duration-500 group-hover:scale-105" unoptimized />
+      {categories.length ? <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">{categories.slice(0, 4).map((category, i) => <Link key={category.slug} href={`/category/${category.slug}`} className={`group relative aspect-[.95] overflow-hidden rounded-[22px] ${i % 2 ? "bg-mint" : "bg-cream"}`}>
+        {category.imageUrl ? <Image src={category.imageUrl} alt="" fill sizes="(max-width: 640px) 50vw, 25vw" className="object-cover transition duration-500 group-hover:scale-105" unoptimized /> : <div className="absolute inset-0 bg-gradient-to-br from-mint to-cream" aria-hidden="true" />}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4 pt-12 text-white"><strong className="font-display text-lg">{category.name}</strong><span className="ml-2 inline-flex align-middle"><ArrowRight size={15} /></span></div>
-      </Link>)}</div>
+      </Link>)}</div> : <p className="rounded-2xl bg-cream p-6 text-gray-600">New toy categories are on their way. Explore all available toys in the shop.</p>}
     </section>
     <section className="bg-[#f8fbf7] py-16"><div className="container">
       <div className="mb-7 flex items-end justify-between gap-4"><div><p className="eyebrow">Handpicked for happy days</p><h2 className="section-title">Little favorites</h2></div><Link href="/shop" className="flex items-center gap-2 text-sm font-bold text-forest">Shop all <ArrowRight size={16} /></Link></div>

@@ -1,4 +1,10 @@
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api").replace(/\/$/, "");
+const configuredApiUrl = (process.env.NEXT_PUBLIC_API_URL || "/api").replace(/\/+$/, "");
+export const API_URL = /\/api$/i.test(configuredApiUrl) ? configuredApiUrl : `${configuredApiUrl}/api`;
+
+function apiRequestUrl(path: string): string {
+  const endpoint = path.replace(/^\/+/, "").replace(/^api(?=\/|$)/i, "").replace(/^\/+/, "");
+  return `${API_URL}/${endpoint}`;
+}
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string) {
@@ -8,7 +14,7 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(apiRequestUrl(path), {
     ...options,
     credentials: "include",
     headers: { "Content-Type": "application/json", ...options.headers }
@@ -26,6 +32,17 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
 
 export function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong. Please try again.";
+}
+
+export async function confirmAuthenticatedSession(): Promise<void> {
+  try {
+    await api("/auth/me");
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      throw new Error("The login request succeeded, but the server did not recognize the new session. Please try again.");
+    }
+    throw error;
+  }
 }
 
 export const taka = (value: number) =>

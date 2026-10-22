@@ -20,6 +20,8 @@ export interface Product {
   imageUrl?: string;
   stockQuantity?: number;
   stock?: number;
+  featured?: boolean;
+  active?: boolean;
   ageRecommendation?: string;
   safetyInformation?: string;
   averageRating?: number;
