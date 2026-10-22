@@ -6,7 +6,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useEffect, useState } from "react";
-import { api, messageOf, taka } from "@/lib/api";
+import { ApiError, api, messageOf, taka } from "@/lib/api";
 import { useStore } from "@/components/store-provider";
 
 const schema = z.object({
@@ -27,6 +27,7 @@ export default function CheckoutPage() {
   const { items, clear } = useStore();
   const [account, setAccount] = useState<AccountUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [submitError, setSubmitError] = useState("");
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({ resolver: zodResolver(schema) });
@@ -34,7 +35,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     api<{ user: AccountUser }>("/auth/me")
       .then(response => { setAccount(response.user); reset({ name: response.user.name, email: response.user.email }); })
-      .catch(() => setAccount(null))
+      .catch(error => {
+        setAccount(null);
+        if (!(error instanceof ApiError && error.status === 401)) setAuthError(messageOf(error));
+      })
       .finally(() => setAuthLoading(false));
   }, [reset]);
   async function submit(values: FormData) {
@@ -77,6 +81,7 @@ export default function CheckoutPage() {
   }
   if (!items.length) return <div className="container page-pad text-center"><h1 className="section-title">Your bag is empty</h1><Link className="btn mt-4" href="/shop">Browse toys</Link></div>;
   if (authLoading) return <div className="container page-pad"><div className="h-48 animate-pulse rounded-3xl bg-cream" /></div>;
+  if (authError) return <div className="container page-pad"><div role="alert" className="card mx-auto max-w-xl p-7 text-center"><p className="eyebrow">Secure checkout</p><h1 className="section-title mt-2">Unable to verify your sign-in</h1><p className="mt-3 text-gray-600">{authError}</p><button className="btn mt-6" onClick={() => window.location.reload()}>Try again</button></div></div>;
   if (!account) return   <div className="container page-pad"><div className="card mx-auto max-w-xl p-7 text-center"><p className="eyebrow">Secure checkout</p><h1 className="section-title mt-2">Sign in before checkout</h1><p className="mt-3 text-gray-600">Your bag will be saved while you sign in or create an account. We need an account to securely link and track your order.</p><div className="mt-6 flex flex-wrap justify-center gap-3"><Link href="/login?returnTo=%2Fcheckout" className="btn">Sign in</Link><Link href="/register?returnTo=%2Fcheckout" className="btn btn-light border border-forest/10">Create account</Link></div></div></div>;
   return <div className="container page-pad"><p className="eyebrow">A few details and then it’s playtime</p><h1 className="section-title">Checkout</h1>
     <form onSubmit={handleSubmit(submit)} className="mt-7 grid gap-7 lg:grid-cols-[1.3fr_.7fr]">

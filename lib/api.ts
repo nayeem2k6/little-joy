@@ -1,5 +1,12 @@
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api").replace(/\/$/, "");
 
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: string) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -11,7 +18,8 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     const errorBody = body && typeof body === "object" ? body : {};
     const detail = errorBody.error;
     const message = errorBody.message || (typeof detail === "string" ? detail : detail?.message) || `Request failed (${response.status})`;
-    throw new Error(String(message));
+    const code = detail && typeof detail === "object" && "code" in detail ? String(detail.code) : undefined;
+    throw new ApiError(String(message), response.status, code);
   }
   return (body && typeof body === "object" && "data" in body ? body.data : body) as T;
 }
