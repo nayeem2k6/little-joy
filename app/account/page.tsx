@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
+import { LoaderCircle } from "lucide-react";
 import { ApiError, api, messageOf, taka } from "@/lib/api";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { useToast } from "@/components/toast-provider";
 
 interface Order {
   _id: string;
@@ -19,12 +22,12 @@ interface User { id?: string; name: string; email: string; phone?: string; role?
 
 export default function AccountPage() {
   const router = useRouter();
+  const { show } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [unauthenticated, setUnauthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -61,7 +64,6 @@ export default function AccountPage() {
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    setSuccess("");
     setSaving(true);
     try {
       const response = await api<{ user: User }>("/auth/profile", {
@@ -71,7 +73,7 @@ export default function AccountPage() {
       setUser(response.user);
       setName(response.user.name);
       setPhone(response.user.phone || "");
-      setSuccess("Your profile has been updated.");
+      show("Profile updated successfully.");
     } catch (reason) {
       setError(messageOf(reason));
     } finally {
@@ -84,6 +86,7 @@ export default function AccountPage() {
     setLoggingOut(true);
     try {
       await api("/auth/logout", { method: "POST" });
+      show("You have signed out successfully.");
       router.replace("/");
     } catch (reason) {
       setError(messageOf(reason));
@@ -113,9 +116,8 @@ export default function AccountPage() {
     <p className="eyebrow">Your LittleJoy corner</p>
     <h1 className="section-title">My account</h1>
     {error && <p role="alert" className="card mt-5 p-4 text-red-700">{error}</p>}
-    {success && <p role="status" className="mt-5 rounded-xl bg-mint p-4 text-forest">{success}</p>}
     {loading
-      ? <div className="mt-6 h-40 animate-pulse rounded-2xl bg-cream" role="status" aria-label="Loading account" />
+      ? <LoadingSpinner label="Loading your account..." className="mt-4 rounded-2xl bg-cream" />
       : unauthenticated ? <div className="card mt-5 p-5">Taking you to sign in…</div>
         : user && <>
           <section className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-cream p-5">
@@ -144,7 +146,7 @@ export default function AccountPage() {
                   <span className="pill capitalize">{order.status}</span>
                   <strong className="text-forest">{taka(order.total)}</strong>
                   <button type="button" onClick={() => showOrder(order._id)} disabled={orderLoading === order._id} className="text-sm font-bold text-forest underline disabled:opacity-60">
-                    {orderLoading === order._id ? "Loading…" : selectedOrder?._id === order._id ? "Hide details" : "View details"}
+                    {orderLoading === order._id ? <span className="inline-flex items-center gap-1"><LoaderCircle size={14} className="animate-spin" />Loading…</span> : selectedOrder?._id === order._id ? "Hide details" : "View details"}
                   </button>
                 </div>
                 {selectedOrder?._id === order._id && <div className="mt-5 grid gap-4 border-t pt-4 sm:grid-cols-2">

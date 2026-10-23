@@ -3,6 +3,7 @@ import { DM_Sans, Fredoka } from "next/font/google";
 import { StoreProvider } from "@/components/store-provider";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { ToastProvider } from "@/components/toast-provider";
 import "./globals.css";
 
 const body = DM_Sans({ subsets: ["latin"], variable: "--font-body" });
@@ -18,11 +19,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body className={`${body.variable} ${display.variable}`}>
-        <StoreProvider>
-          <SiteHeader />
-          <main id="main-content">{children}</main>
-          <SiteFooter />
-        </StoreProvider>
+        <ToastProvider>
+          <StoreProvider>
+            <SiteHeader />
+            <main id="main-content">{children}</main>
+            <SiteFooter />
+          </StoreProvider>
+        </ToastProvider>
       </body>
     </html>
   );

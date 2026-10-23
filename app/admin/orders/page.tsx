@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { api, messageOf, taka } from "@/lib/api";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { useToast } from "@/components/toast-provider";
 
 interface Order {
   _id: string;
@@ -17,10 +19,11 @@ interface Order {
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState("");
+  const { show } = useToast();
   async function load() {
+    setLoading(true);
     setError("");
     try {
       const response = await api<{ orders?: Order[]; data?: Order[]; items?: Order[] }>("/admin/orders?limit=100");
@@ -34,18 +37,17 @@ export default function AdminOrdersPage() {
   useEffect(() => { void load(); }, []);
   async function update(id: string, orderNumber: string, status: string) {
     setError("");
-    setSuccess("");
     if (status === "cancelled" && !window.confirm(`Cancel order ${orderNumber}? Stock will be restored and the coupon use reversed.`)) return;
     try {
       await api(`/admin/orders/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
-      setSuccess(`Order ${orderNumber} updated to ${status}.`);
+      show(`Order ${orderNumber} updated to ${status}.`);
       await load();
     } catch (err) {
       setError(messageOf(err));
     }
   }
-  return <div className="container page-pad"><p className="eyebrow">Store management</p><h1 className="section-title">Orders</h1>{error && <p role="alert" className="my-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}{success && <p role="status" className="my-4 rounded-lg bg-mint p-3 text-sm text-forest">{success}</p>}
-    {loading ? <div className="mt-5 h-36 animate-pulse rounded-2xl bg-cream" role="status" aria-label="Loading orders" />
+  return <div className="container page-pad"><p className="eyebrow">Store management</p><h1 className="section-title">Orders</h1>{error && <p role="alert" className="my-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+    {loading ? <LoadingSpinner label="Loading orders..." className="mt-4 rounded-2xl bg-cream" />
       : orders.length ? <div className="mt-5 grid gap-3">{orders.map(order => <article key={order._id} className="card p-4">
         <div className="grid gap-3 sm:grid-cols-[1.3fr_1fr_.7fr_1fr] sm:items-center">
           <div><strong>{order.orderNumber}</strong><p className="text-sm text-gray-500">{order.shippingAddress?.fullName || order.user?.name || "Customer"} · {order.shippingAddress?.phone || order.user?.email || ""}</p></div>

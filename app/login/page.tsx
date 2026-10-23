@@ -8,11 +8,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { api, confirmAuthenticatedSession, messageOf } from "@/lib/api";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
+import { useToast } from "@/components/toast-provider";
 
 const schema = z.object({ email: z.string().trim().email("Enter a valid email address."), password: z.string().min(8, "Password must be at least 8 characters.") });
 type Values = z.infer<typeof schema>;
 export default function LoginPage() {
   const router = useRouter();
+  const { show } = useToast();
   const [error, setError] = useState("");
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Values>({ resolver: zodResolver(schema) });
   async function submit(values: Values) {
@@ -20,6 +22,7 @@ export default function LoginPage() {
     try {
       await api("/auth/login", { method: "POST", body: JSON.stringify(values) });
       await confirmAuthenticatedSession();
+      show("Login successful. Welcome back!");
       continueAfterSignIn();
     }
     catch (err) { setError(messageOf(err)); }
@@ -32,6 +35,7 @@ export default function LoginPage() {
     setError("");
     await api("/auth/google", { method: "POST", body: JSON.stringify({ credential }) });
     await confirmAuthenticatedSession();
+    show("Login successful. Welcome back!");
     continueAfterSignIn();
   }
   return <div className="container page-pad"><div className="card mx-auto max-w-lg p-6 sm:p-9"><p className="eyebrow">Hello again</p><h1 className="section-title">Welcome back</h1><p className="mb-6 text-gray-600">Sign in to see your orders and keep the fun going.</p>

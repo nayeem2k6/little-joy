@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { api, confirmAuthenticatedSession, messageOf } from "@/lib/api";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
+import { useToast } from "@/components/toast-provider";
 
 const schema = z.object({
   name: z.string().trim().min(2, "Please enter your name."),
@@ -18,6 +19,7 @@ const schema = z.object({
 type Values = z.infer<typeof schema>;
 export default function RegisterPage() {
   const router = useRouter();
+  const { show } = useToast();
   const [error, setError] = useState("");
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Values>({ resolver: zodResolver(schema) });
   async function submit(values: Values) {
@@ -25,6 +27,7 @@ export default function RegisterPage() {
     try {
       await api("/auth/register", { method: "POST", body: JSON.stringify(values) });
       await confirmAuthenticatedSession();
+      show("Your account was created successfully!");
       continueAfterSignIn();
     }
     catch (err) { setError(messageOf(err)); }
@@ -37,6 +40,7 @@ export default function RegisterPage() {
     setError("");
     await api("/auth/google", { method: "POST", body: JSON.stringify({ credential }) });
     await confirmAuthenticatedSession();
+    show("Login successful. Welcome!");
     continueAfterSignIn();
   }
   return <div className="container page-pad"><div className="card mx-auto max-w-lg p-6 sm:p-9"><p className="eyebrow">Join our little community</p><h1 className="section-title">Create an account</h1>

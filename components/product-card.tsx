@@ -6,11 +6,13 @@ import { ShoppingBag, Star } from "lucide-react";
 import { productId, productImage, productStock, type Product } from "@/lib/types";
 import { taka } from "@/lib/api";
 import { useStore } from "./store-provider";
+import { useToast } from "./toast-provider";
 
 const fallback = "https://images.unsplash.com/photo-1599623560574-39d485900c95?auto=format&fit=crop&w=800&q=80";
 
 export function ProductCard({ product }: { product: Product }) {
   const { add } = useStore();
+  const { show } = useToast();
   const image = productImage(product) || fallback;
   const stock = productStock(product);
   const sale = product.compareAtPrice && product.compareAtPrice > product.price
@@ -29,7 +31,7 @@ export function ProductCard({ product }: { product: Product }) {
       <Link href={`/product/${product.slug || productId(product)}`} className="mt-3 block font-display text-lg font-medium leading-snug hover:text-forest">{product.name}</Link>
       <div className="mt-3 flex items-center justify-between gap-2">
         <div className="flex flex-wrap items-baseline gap-2"><strong className="text-forest">{taka(product.price)}</strong>{product.compareAtPrice && product.compareAtPrice > product.price && <del className="text-xs text-gray-400">{taka(product.compareAtPrice)}</del>}</div>
-        <button onClick={() => add(product)} disabled={stock <= 0} aria-label={`Add ${product.name} to cart`} className="grid h-10 w-10 place-items-center rounded-full bg-mint text-forest transition hover:bg-lime disabled:cursor-not-allowed disabled:opacity-40"><ShoppingBag size={18} /></button>
+        <button onClick={() => { add(product); show(`${product.name} added to your bag.`); }} disabled={stock <= 0} aria-label={`Add ${product.name} to cart`} className="grid h-10 w-10 place-items-center rounded-full bg-mint text-forest transition hover:bg-lime disabled:cursor-not-allowed disabled:opacity-40"><ShoppingBag size={18} /></button>
       </div>
     </div>
   </article>;

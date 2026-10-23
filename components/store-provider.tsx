@@ -7,6 +7,7 @@ export interface CartItem { product: Product; quantity: number }
 interface StoreValue {
   items: CartItem[];
   count: number;
+  ready: boolean;
   add: (product: Product, quantity?: number) => void;
   update: (id: string, quantity: number) => void;
   remove: (id: string) => void;
@@ -31,6 +32,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<StoreValue>(() => ({
     items,
     count: items.reduce((sum, item) => sum + item.quantity, 0),
+    ready,
     add(product, quantity = 1) {
       setItems(current => {
         const id = productId(product);
@@ -47,7 +49,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     },
     remove(id) { setItems(current => current.filter(item => productId(item.product) !== id)); },
     clear() { setItems([]); }
-  }), [items]);
+  }), [items, ready]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 

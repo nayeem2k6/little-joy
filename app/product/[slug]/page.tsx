@@ -8,6 +8,8 @@ import { api, messageOf, taka } from "@/lib/api";
 import { productId, productImage, productStock, type ApiList, type Product } from "@/lib/types";
 import { useStore } from "@/components/store-provider";
 import { ProductCard } from "@/components/product-card";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { useToast } from "@/components/toast-provider";
 
 const fallback = "https://images.unsplash.com/photo-1599623560574-39d485900c95?auto=format&fit=crop&w=1000&q=80";
 function unwrap<T>(res: ApiList<T> | T[]): T[] { return Array.isArray(res) ? res : res.data || res.products || res.items || []; }
@@ -17,14 +19,25 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
   const { slug } = use(params);
   const [product, setProduct] = useState<Product | null>(null);
   const [related, setRelated] = useState<Product[]>([]);
+  const [productLoading, setProductLoading] = useState(true);
   const [error, setError] = useState("");
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [relatedLoading, setRelatedLoading] = useState(true);
   const [reviewError, setReviewError] = useState("");
-  const [reviewMessage, setReviewMessage] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const { add } = useStore();
+  const { show } = useToast();
   useEffect(() => {
+    setProductLoading(true);
+    setProduct(null);
+    setRelated([]);
+    setReviews([]);
+    setError("");
+    setReviewError("");
+    setReviewsLoading(true);
+    setRelatedLoading(true);
     api<Product | { product: Product }>(`/products/${encodeURIComponent(slug)}`)
       .then(res => {
         const item = "product" in res ? res.product : res;
@@ -33,17 +46,22 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
         const productRef = item.slug || productId(item);
         void api<ApiList<Review>>(`/products/${encodeURIComponent(productRef)}/reviews`)
           .then(response => setReviews(response.items || []))
-          .catch(err => setReviewError(messageOf(err)));
+          .catch(err => setReviewError(messageOf(err)))
+          .finally(() => setReviewsLoading(false));
         return category
           ? api<ApiList<Product> | Product[]>(`/products?category=${encodeURIComponent(String(category))}&limit=5`)
           : Promise.resolve({ items: [] } as ApiList<Product>);
       })
       .then(res => setRelated(unwrap(res).filter(item => item.slug !== slug).slice(0, 4)))
-      .catch(err => setError(messageOf(err)));
+      .catch(err => setError(messageOf(err)))
+      .finally(() => {
+        setProductLoading(false);
+        setRelatedLoading(false);
+      });
   }, [slug]);
   async function submitReview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setReviewError(""); setReviewMessage("");
+    setReviewError("");
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     try {
@@ -51,12 +69,13 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
         method: "POST",
         body: JSON.stringify({ rating: Number(form.get("rating")), comment: form.get("comment") })
       });
-      setReviewMessage("Thanks! Your verified-purchase review has been submitted for moderation.");
+      show("Review submitted successfully. It will appear after moderation.");
       formElement.reset();
     } catch (err) { setReviewError(messageOf(err)); }
   }
+  if (productLoading) return <div className="container page-pad"><LoadingSpinner label="Loading toy details..." /></div>;
   if (error) return <div className="container page-pad"><p role="alert" className="card p-8 text-center">{error} <Link className="text-forest underline" href="/shop">Browse the shop</Link></p></div>;
-  if (!product) return <div className="container page-pad"><div className="h-96 animate-pulse rounded-3xl bg-cream" /></div>;
+  if (!product) return <div className="container page-pad"><LoadingSpinner label="Loading toy details..." /></div>;
   const image = productImage(product) || fallback;
   const stock = productStock(product);
   const structuredData = {
@@ -86,7 +105,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
         {product.safetyInformation && <div className="mt-4 flex items-start gap-2 rounded-xl bg-cream p-4 text-sm leading-6 text-gray-700"><ShieldCheck size={18} className="mt-1 shrink-0 text-forest" /><p><strong>Safety notes</strong><br />{product.safetyInformation}</p></div>}
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <div className="flex items-center rounded-full border border-gray-200"><button aria-label="Decrease quantity" className="p-3" onClick={() => setQuantity(q => Math.max(1, q - 1))}><Minus size={15} /></button><span className="min-w-8 text-center">{quantity}</span><button aria-label="Increase quantity" className="p-3" disabled={quantity >= stock} onClick={() => setQuantity(q => Math.min(stock, q + 1))}><Plus size={15} /></button></div>
-          <button disabled={!stock} className="btn flex-1 disabled:cursor-not-allowed disabled:opacity-40" onClick={() => { add(product, quantity); setAdded(true); setTimeout(() => setAdded(false), 2500); }}><ShoppingBag size={18} />{added ? "Added to bag!" : "Add to bag"}</button>
+          <button disabled={!stock} className="btn flex-1 disabled:cursor-not-allowed disabled:opacity-40" onClick={() => { add(product, quantity); setAdded(true); show(`${product.name} added to your bag.`); setTimeout(() => setAdded(false), 2500); }}><ShoppingBag size={18} />{added ? "Added to bag!" : "Add to bag"}</button>
           <Link href="/cart" className="btn btn-light border border-forest/10">View bag</Link>
         </div>
         <div className="mt-7 flex gap-3 rounded-2xl bg-mint p-4 text-sm text-forest"><Truck className="shrink-0" /><p><strong>Delivered with care</strong><br />Cash on Delivery available across Bangladesh.</p></div>
@@ -94,10 +113,10 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
     </div>
     <section className="mt-16 grid gap-8 lg:grid-cols-[1.2fr_.8fr]">
       <div><h2 className="section-title text-3xl">LittleJoy reviews</h2>{reviewError && <p role="status" className="mt-3 text-sm text-gray-600">Reviews are temporarily unavailable.</p>}
-        {reviews.length ? <div className="mt-5 grid gap-3">{reviews.map(review => <article key={review._id} className="card p-4"><div className="flex items-center justify-between gap-3"><strong>{review.user?.name || "LittleJoy customer"}</strong><span aria-label={`${review.rating} out of 5 stars`} className="text-sm text-amber-600">{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</span></div><p className="mt-2 leading-6 text-gray-600">{review.comment}</p><p className="mt-2 text-xs text-gray-400">Verified purchase · {new Date(review.createdAt).toLocaleDateString()}</p></article>)}</div> : !reviewError && <p className="mt-4 text-gray-600">No approved reviews yet. Your experience could be the first!</p>}
+        {reviewsLoading ? <LoadingSpinner label="Loading reviews..." className="mt-3 min-h-28" /> : reviews.length ? <div className="mt-5 grid gap-3">{reviews.map(review => <article key={review._id} className="card p-4"><div className="flex items-center justify-between gap-3"><strong>{review.user?.name || "LittleJoy customer"}</strong><span aria-label={`${review.rating} out of 5 stars`} className="text-sm text-amber-600">{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</span></div><p className="mt-2 leading-6 text-gray-600">{review.comment}</p><p className="mt-2 text-xs text-gray-400">Verified purchase · {new Date(review.createdAt).toLocaleDateString()}</p></article>)}</div> : !reviewError && <p className="mt-4 text-gray-600">No approved reviews yet. Your experience could be the first!</p>}
       </div>
-      <form onSubmit={submitReview} className="card h-fit p-5"><h3 className="font-display text-xl">Share your experience</h3><p className="mt-1 text-sm leading-6 text-gray-600">Reviews are available to customers who received this product.</p><label className="field-label mt-4">Rating<select required name="rating" className="field"><option value="5">5 - Loved it</option><option value="4">4 - Great</option><option value="3">3 - Good</option><option value="2">2 - Not for me</option><option value="1">1 - Disappointed</option></select></label><label className="field-label mt-4">Your review<textarea required minLength={3} maxLength={2000} name="comment" rows={4} className="field" /></label>{reviewError && <p role="alert" className="mt-3 text-sm text-red-700">{reviewError}</p>}{reviewMessage && <p role="status" className="mt-3 text-sm text-forest">{reviewMessage}</p>}<button className="btn mt-4 w-full">Submit review</button></form>
+      <form onSubmit={submitReview} className="card h-fit p-5"><h3 className="font-display text-xl">Share your experience</h3><p className="mt-1 text-sm leading-6 text-gray-600">Reviews are available to customers who received this product.</p><label className="field-label mt-4">Rating<select required name="rating" className="field"><option value="5">5 - Loved it</option><option value="4">4 - Great</option><option value="3">3 - Good</option><option value="2">2 - Not for me</option><option value="1">1 - Disappointed</option></select></label><label className="field-label mt-4">Your review<textarea required minLength={3} maxLength={2000} name="comment" rows={4} className="field" /></label>{reviewError && <p role="alert" className="mt-3 text-sm text-red-700">{reviewError}</p>}<button className="btn mt-4 w-full">Submit review</button></form>
     </section>
-    {related.length > 0 && <section className="mt-16"><h2 className="section-title text-3xl">More little favorites</h2><div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">{related.map(item => <ProductCard key={productId(item)} product={item} />)}</div></section>}
+    {relatedLoading ? <section className="mt-16"><h2 className="section-title text-3xl">More little favorites</h2><LoadingSpinner label="Loading more favorites..." className="mt-2" /></section> : related.length > 0 && <section className="mt-16"><h2 className="section-title text-3xl">More little favorites</h2><div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">{related.map(item => <ProductCard key={productId(item)} product={item} />)}</div></section>}
   </div>;
 }

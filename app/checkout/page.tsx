@@ -8,6 +8,8 @@ import { useForm } from "react-hook-form";
 import { useEffect, useState } from "react";
 import { ApiError, api, messageOf, taka } from "@/lib/api";
 import { useStore } from "@/components/store-provider";
+import { LoadingSpinner } from "@/components/loading-spinner";
+import { useToast } from "@/components/toast-provider";
 
 const schema = z.object({
   name: z.string().trim().min(2, "Please enter your name."),
@@ -24,7 +26,8 @@ interface AccountUser { name: string; email: string }
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, clear } = useStore();
+  const { items, clear, ready } = useStore();
+  const { show } = useToast();
   const [account, setAccount] = useState<AccountUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
@@ -76,11 +79,13 @@ export default function CheckoutPage() {
         console.error("Could not save the order summary for this browser", storageError);
       }
       clear();
+      show("Your order was placed successfully!");
       router.push(`/order-confirmation${orderNumber ? `?order=${encodeURIComponent(orderNumber)}` : ""}`);
     } catch (error) { setSubmitError(messageOf(error)); }
   }
+  if (!ready) return <div className="container page-pad"><LoadingSpinner label="Loading your bag..." /></div>;
   if (!items.length) return <div className="container page-pad text-center"><h1 className="section-title">Your bag is empty</h1><Link className="btn mt-4" href="/shop">Browse toys</Link></div>;
-  if (authLoading) return <div className="container page-pad"><div className="h-48 animate-pulse rounded-3xl bg-cream" /></div>;
+  if (authLoading) return <div className="container page-pad"><LoadingSpinner label="Loading secure checkout..." /></div>;
   if (authError) return <div className="container page-pad"><div role="alert" className="card mx-auto max-w-xl p-7 text-center"><p className="eyebrow">Secure checkout</p><h1 className="section-title mt-2">Unable to verify your sign-in</h1><p className="mt-3 text-gray-600">{authError}</p><button className="btn mt-6" onClick={() => window.location.reload()}>Try again</button></div></div>;
   if (!account) return   <div className="container page-pad"><div className="card mx-auto max-w-xl p-7 text-center"><p className="eyebrow">Secure checkout</p><h1 className="section-title mt-2">Sign in before checkout</h1><p className="mt-3 text-gray-600">Your bag will be saved while you sign in or create an account. We need an account to securely link and track your order.</p><div className="mt-6 flex flex-wrap justify-center gap-3"><Link href="/login?returnTo=%2Fcheckout" className="btn">Sign in</Link><Link href="/register?returnTo=%2Fcheckout" className="btn btn-light border border-forest/10">Create account</Link></div></div></div>;
   return <div className="container page-pad"><p className="eyebrow">A few details and then it’s playtime</p><h1 className="section-title">Checkout</h1>
