@@ -12,7 +12,7 @@ export function SiteHeader() {
   const { count } = useStore();
   return (
     <>
-      <div className="bg-forest px-3 py-2 text-center text-[10px] font-semibold text-white sm:text-xs">Little smiles, delivered across Bangladesh · Cash on Delivery available</div>
+      <div className="bg-forest px-3 py-2 text-center text-[10px] font-semibold text-white sm:text-xs">বিনামূল্যে হোম ডেলিভারি | পণ্য হাতে পেয়ে টাকা পরিশোধ করুন</div>
       <header className="sticky top-0 z-40 border-b border-emerald-950/5 bg-white/95 backdrop-blur">
         <div className="container flex h-[68px] items-center justify-between gap-1 sm:h-[76px] sm:gap-3">
           <button className="grid h-10 w-9 shrink-0 place-items-center rounded-xl text-forest transition-colors hover:bg-cream md:hidden" aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open} onClick={() => setOpen(!open)}>{open ? <X size={21} /> : <Menu size={21} />}</button>
